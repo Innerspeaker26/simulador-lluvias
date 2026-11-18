@@ -54,12 +54,14 @@ button{font:inherit;color:inherit}
 .views .btn,.seg .btn{padding:8px 6px;font-size:12.5px;font-weight:500}
 .views .btn.on,.seg .btn.on{background:var(--accent-soft);border-color:var(--accent);color:#0f4fb0}
 
-#leyenda{position:fixed;right:16px;bottom:84px;padding:8px 12px;width:228px;font-size:11.5px;color:var(--muted)}
+#esquina{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+#esquina>*{pointer-events:auto}
+#leyenda{padding:8px 12px;width:228px;font-size:11.5px;color:var(--muted)}
 #leyenda .lt{font-weight:600;color:var(--ink);margin-bottom:5px;font-size:12px}
 #leyenda .ramp{height:10px;border-radius:5px;background:linear-gradient(90deg,#9fe0f9 0%,#4aa0f2 30%,#1a55cc 62%,#0d2680 100%)}
 #leyenda .ticks{display:flex;justify-content:space-between;margin-top:3px;font-family:var(--mono);font-size:11px}
 
-#hint{position:fixed;right:16px;bottom:16px;padding:8px 12px;font-size:11.5px;color:var(--muted);max-width:420px;line-height:1.45;text-align:right}
+#hint{padding:8px 12px;font-size:11.5px;color:var(--muted);max-width:420px;line-height:1.45;text-align:right}
 
 #sonda{position:fixed;z-index:5;padding:8px 11px;font-size:12px;line-height:1.55;pointer-events:none;transform:translate(12px,-50%);white-space:nowrap}
 #sonda b{font-family:var(--mono);font-weight:500}
@@ -75,7 +77,7 @@ button{font:inherit;color:inherit}
   #panel{left:8px;right:8px;width:auto;bottom:8px;max-height:44%}
   #hud{right:8px;top:auto;bottom:calc(44% + 16px);min-width:0;padding:6px 10px;font-size:11.5px}
   #hud .kv:nth-child(n+5){display:none}
-  #hint,#leyenda{display:none}
+  #esquina{display:none}
   #title{left:8px;top:8px;right:8px;max-width:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
