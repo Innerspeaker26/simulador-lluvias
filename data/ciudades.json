@@ -1,0 +1,18 @@
+{
+ "piura": {
+  "nombre": "Piura",
+  "subtitulo": "Piura, Castilla y Veintiséis de Octubre"
+ },
+ "sullana": {
+  "nombre": "Sullana",
+  "subtitulo": "Sullana y Bellavista"
+ },
+ "tumbes": {
+  "nombre": "Tumbes",
+  "subtitulo": "Tumbes y Corrales"
+ },
+ "chiclayo": {
+  "nombre": "Chiclayo",
+  "subtitulo": "Chiclayo, José Leonardo Ortiz y La Victoria"
+ }
+}
