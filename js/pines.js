@@ -130,6 +130,7 @@ export class Pines {
   // ---- Lista en el panel -------------------------------------------------------
   render() {
     const L = this.lista; L.innerHTML = '';
+    if (this.alCambiar) this.alCambiar(this.pines.length);
     if (!this.pines.length) {
       L.innerHTML = '<p class="vacio">Haz clic en el terreno y pulsa «Fijar pin», o escribe coordenadas arriba.</p>';
       return;
@@ -143,8 +144,8 @@ export class Pines {
           <button class="mini" data-a="copiar" title="Copiar coordenadas">Copiar</button>
           <button class="mini" data-a="x" title="Quitar pin" aria-label="Quitar pin ${p.id}">✕</button></div>
         <div class="mono">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
-        <div class="mono">UTM 17S ${fmt(p.E, 1)} E · ${fmt(p.N, 1)} N</div>
-        <div class="pin-v">Cota <b>${fmt(cota, 1)} m</b> · Agua <b data-v="d">–</b> · máx <b data-v="dmax">–</b></div>
+        <div class="mono">UTM 17S ${fmt(p.E, 0)} E · ${fmt(p.N, 0)} N</div>
+        <div class="pin-g"><div><span>Cota</span><b>${fmt(cota, 1)} m</b></div><div><span>Agua</span><b data-v="d">–</b></div><div><span>Máximo</span><b data-v="dmax">–</b></div></div>
         <canvas width="520" height="96" aria-label="Tirante en el tiempo en el pin ${p.id}"></canvas>`;
       el.querySelector('[data-a=ir]').onclick = () => this.irA(p.xe, p.ys, 900);
       el.querySelector('[data-a=x]').onclick = () => this.quitar(p.id);

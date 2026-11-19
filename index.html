@@ -32,6 +32,7 @@
   La lluvia escurre por la pendiente, rodea las viviendas y se acumula en las zonas bajas.</p>
 </header>
 
+<div id="derecha">
 <div id="hud" class="card" aria-live="off">
   <div class="fase"><span id="hFase" class="pill">Lloviendo</span></div>
   <div class="kv"><span>Tiempo simulado</span><b id="hT">0:00 h</b></div>
@@ -43,6 +44,26 @@
   <div class="kv kc" hidden><span>Calles con &gt; 10 cm</span><b id="hC10">0 km</b></div>
   <div class="kv kc" hidden><span>Calles con &gt; 30 cm</span><b id="hC30">0 km</b></div>
   <div class="kv muted"><span>Cuadros por segundo</span><b id="fps">0</b></div>
+<section id="cPines" class="card" aria-label="Pines y coordenadas">
+  <div class="head"><h2>📍 Pines y coordenadas <span id="nPines"></span></h2>
+    <button id="tPines" aria-expanded="true" title="Mostrar u ocultar">Ocultar</button></div>
+  <div class="body">
+      <form id="fIr" class="ir" autocomplete="off">
+        <input id="tIr" list="dlCalles" placeholder="-5.1945, -80.6328 · 540694 9425824 · Av. Grau" aria-label="Ir a coordenadas o calle">
+        <button class="btn" type="submit">Ir</button>
+        <datalist id="dlCalles"></datalist>
+      </form>
+      <p class="nota" id="nIr">Latitud y longitud, UTM 17S (Este Norte) o el nombre de una calle. Se fija un pin en el lugar.</p>
+      <div id="pines"></div>
+      <div class="views exp">
+        <button class="btn" id="bPinCSV" title="Pines con coordenadas, cota y tirante">CSV</button>
+        <button class="btn" id="bPinGJ" title="Pines como puntos para ArcGIS o QGIS">GeoJSON</button>
+        <button class="btn" id="bPinSerie" title="Tirante en el tiempo de cada pin">Serie (CSV)</button>
+        <button class="btn" id="bPinLink" title="Copia un enlace que abre esta ciudad con los pines">Copiar enlace</button>
+      </div>
+  </div>
+</section>
+</div>
 </div>
 
 <section id="panel" class="card" aria-label="Controles">
@@ -105,22 +126,6 @@
       <div class="views" id="views"></div>
     </div>
     <div class="sec">
-      <h2>Pines y coordenadas</h2>
-      <form id="fIr" class="ir" autocomplete="off">
-        <input id="tIr" list="dlCalles" placeholder="-5.1945, -80.6328 · 540694 9425824 · Av. Grau" aria-label="Ir a coordenadas o calle">
-        <button class="btn" type="submit">Ir</button>
-        <datalist id="dlCalles"></datalist>
-      </form>
-      <p class="nota" id="nIr">Latitud y longitud, UTM 17S (Este Norte) o el nombre de una calle. Se fija un pin en el lugar.</p>
-      <div id="pines"></div>
-      <div class="views exp">
-        <button class="btn" id="bPinCSV" title="Pines con coordenadas, cota y tirante">CSV</button>
-        <button class="btn" id="bPinGJ" title="Pines como puntos para ArcGIS o QGIS">GeoJSON</button>
-        <button class="btn" id="bPinSerie" title="Tirante en el tiempo de cada pin">Serie (CSV)</button>
-        <button class="btn" id="bPinLink" title="Copia un enlace que abre esta ciudad con los pines">Copiar enlace</button>
-      </div>
-    </div>
-    <div class="sec">
       <h2>Exportar</h2>
       <button id="bExp" class="btn wide" title="Cuadrícula ASCII + .prj (UTM 17S) para ArcGIS o QGIS">Tirante máximo para ArcGIS (.asc)</button>
     </div>
@@ -135,6 +140,7 @@
   <div class="lt">Tirante de agua</div>
   <div class="ramp"></div>
   <div class="ticks"><span>5 cm</span><span>0.3</span><span>1</span><span>≥ 2 m</span></div>
+</div>
 </div>
 <div id="hint" class="card">Arrastra para rotar, rueda para acercar, clic derecho para desplazar. Clic en el terreno para consultar el tirante y fijar pines.<br>
 <span id="cred"></span></div>

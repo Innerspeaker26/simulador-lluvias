@@ -484,7 +484,11 @@ async function main() {
     el.querySelector('[data-s=m]').textContent = `${fmt(w.dmax, 2)} m`;
     el.style.left = Math.min(sonda.sx, innerWidth - 250) + 'px'; el.style.top = sonda.sy + 'px'; el.hidden = false;
   }
-  function abrirPanel() { const p = $('panel'); if (p.classList.contains('closed')) $('tPanel').click(); }
+  function abrirPanel() { const p = $('cPines'); if (p.classList.contains('closed')) $('tPines').click(); }
+  $('tPines').addEventListener('click', () => {
+    const p = $('cPines'), cerrado = p.classList.toggle('closed');
+    $('tPines').textContent = cerrado ? 'Mostrar' : 'Ocultar'; $('tPines').setAttribute('aria-expanded', !cerrado);
+  });
 
   // Nombre de la calle bajo el cursor
   let ultimoMov = 0;
@@ -537,6 +541,7 @@ async function main() {
     } else return avisoIr('Escribe coordenadas: latitud, longitud o Este Norte (UTM 17S).');
     pines.agregar(pos.xe, pos.ys); volarA(pos.xe, pos.ys, 900);
   });
+  pines.alCambiar = (n) => { $('nPines').textContent = n ? `(${n})` : ''; if (n) abrirPanel(); };
   $('bPinCSV').onclick = () => pines.exportarCSV();
   $('bPinGJ').onclick = () => pines.exportarGeoJSON();
   $('bPinSerie').onclick = () => pines.exportarSerie();
