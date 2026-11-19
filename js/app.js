@@ -547,6 +547,17 @@ async function main() {
     else prompt('Copia este enlace:', pines.enlace());
   };
 
+  // Nombres de calles sobre el terreno (se cargan aparte: si el CDN falla, el resto sigue funcionando)
+  let etiquetas = null;
+  if (calles) {
+    import('./etiquetas.js').then((m) => {
+      etiquetas = new m.Etiquetas({ calles, zEn, Wm, Hm, exag: () => U.uExag.value, camera, canvas });
+      etiquetas.visible = $('cNombres').checked;
+      scene.add(etiquetas.grupo);
+    }).catch((e) => { console.warn('Nombres de calles no disponibles:', e); $('cNombres').parentElement.hidden = true; });
+    $('cNombres').addEventListener('change', (e) => { if (etiquetas) etiquetas.visible = e.target.checked; });
+  }
+
   // Calles: mostrar / más afectadas
   if (calles) {
     $('cCalles').addEventListener('change', (e) => { U.uVerCalles.value = e.target.checked ? 1 : 0; });
@@ -617,6 +628,7 @@ async function main() {
     const dist = camera.position.distanceTo(controls.target), near = Math.max(8, dist * 0.02);
     if (Math.abs(near - camera.near) / camera.near > 0.1) { camera.near = near; camera.updateProjectionMatrix(); }
     pines.posicionar();
+    if (etiquetas) etiquetas.actualizar(dt);
     renderer.render(scene, camera);
 
     acum += dt; cuadros++; tStats += dt;

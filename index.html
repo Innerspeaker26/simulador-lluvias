@@ -11,7 +11,9 @@
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "troika-three-text": "https://cdn.jsdelivr.net/npm/troika-three-text@0.52.4/+esm",
+  "https://cdn.jsdelivr.net/npm/three@0.175.0/+esm": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
 } }
 </script>
 </head>
@@ -93,6 +95,7 @@
     <div class="sec" id="secCalles" hidden>
       <h2>Calles</h2>
       <label class="chk"><input type="checkbox" id="cCalles" checked> Mostrar calles</label>
+      <label class="chk"><input type="checkbox" id="cNombres" checked> Nombres de calles</label>
       <p class="nota" id="nCalles"></p>
       <button id="bAfect" class="btn wide" title="Calles con más longitud bajo más de 30 cm de agua (tirante máximo)">Calles más afectadas</button>
       <ol id="lAfect" class="afect"></ol>
