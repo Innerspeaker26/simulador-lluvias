@@ -38,6 +38,8 @@
   <div class="kv"><span>Área con &gt; 10 cm</span><b id="hA10">0 ha</b></div>
   <div class="kv"><span>Área con &gt; 50 cm</span><b id="hA50">0 ha</b></div>
   <div class="kv"><span>Tirante máximo</span><b id="hMax">0.00 m</b></div>
+  <div class="kv kc" hidden><span>Calles con &gt; 10 cm</span><b id="hC10">0 km</b></div>
+  <div class="kv kc" hidden><span>Calles con &gt; 30 cm</span><b id="hC30">0 km</b></div>
   <div class="kv muted"><span>Cuadros por segundo</span><b id="fps">0</b></div>
 </div>
 
@@ -88,9 +90,32 @@
       <div class="ctl"><label for="rBld">Altura de edificaciones</label><output id="oBld"></output><input id="rBld" type="range" min="0" max="3" step="0.1" value="1"></div>
       <label class="chk"><input type="checkbox" id="cBld" checked> Mostrar viviendas</label>
     </div>
+    <div class="sec" id="secCalles" hidden>
+      <h2>Calles</h2>
+      <label class="chk"><input type="checkbox" id="cCalles" checked> Mostrar calles</label>
+      <p class="nota" id="nCalles"></p>
+      <button id="bAfect" class="btn wide" title="Calles con más longitud bajo más de 30 cm de agua (tirante máximo)">Calles más afectadas</button>
+      <ol id="lAfect" class="afect"></ol>
+    </div>
     <div class="sec">
       <h2>Vistas</h2>
       <div class="views" id="views"></div>
+    </div>
+    <div class="sec">
+      <h2>Pines y coordenadas</h2>
+      <form id="fIr" class="ir" autocomplete="off">
+        <input id="tIr" list="dlCalles" placeholder="-5.1945, -80.6328 · 540694 9425824 · Av. Grau" aria-label="Ir a coordenadas o calle">
+        <button class="btn" type="submit">Ir</button>
+        <datalist id="dlCalles"></datalist>
+      </form>
+      <p class="nota" id="nIr">Latitud y longitud, UTM 17S (Este Norte) o el nombre de una calle. Se fija un pin en el lugar.</p>
+      <div id="pines"></div>
+      <div class="views exp">
+        <button class="btn" id="bPinCSV" title="Pines con coordenadas, cota y tirante">CSV</button>
+        <button class="btn" id="bPinGJ" title="Pines como puntos para ArcGIS o QGIS">GeoJSON</button>
+        <button class="btn" id="bPinSerie" title="Tirante en el tiempo de cada pin">Serie (CSV)</button>
+        <button class="btn" id="bPinLink" title="Copia un enlace que abre esta ciudad con los pines">Copiar enlace</button>
+      </div>
     </div>
     <div class="sec">
       <h2>Exportar</h2>
@@ -100,6 +125,7 @@
 </section>
 
 <div id="sonda" class="card" hidden></div>
+<div id="etiqueta" hidden></div>
 
 <div id="esquina">
 <div id="leyenda" class="card" aria-label="Leyenda de tirante">
@@ -107,7 +133,7 @@
   <div class="ramp"></div>
   <div class="ticks"><span>5 cm</span><span>0.3</span><span>1</span><span>≥ 2 m</span></div>
 </div>
-<div id="hint" class="card">Arrastra para rotar, rueda para acercar, clic derecho para desplazar. Clic en el terreno para consultar el tirante.<br>
+<div id="hint" class="card">Arrastra para rotar, rueda para acercar, clic derecho para desplazar. Clic en el terreno para consultar el tirante y fijar pines.<br>
 <span id="cred"></span></div>
 </div>
 

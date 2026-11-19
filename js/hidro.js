@@ -62,7 +62,7 @@ const FS_CAUDAL = COMUN + /* glsl */`
 
 const FS_TIRANTE = COMUN + /* glsl */`
   uniform sampler2D uS;
-  uniform sampler2D uF;      // R: aporte puntual (m/s, p.ej. caudal del río), G: permeabilidad (0-1)
+  uniform sampler2D uF;      // R: aporte puntual (m/s, p.ej. caudal del río), G: permeabilidad (0-1; < 0 = mar)
   uniform float uLluvia;     // m/s
   uniform float uPerdida;    // m/s
   void main(){
@@ -75,6 +75,7 @@ const FS_TIRANTE = COMUN + /* glsl */`
     float d = s.r + uDt*((qW - s.g) + (qN - s.b))/uDx + uDt*(uLluvia + f.r);
     d -= min(max(d, 0.0), uDt*uPerdida*f.g);
     d = max(d, 0.0);
+    if (f.g < 0.0) d = 0.0;          // mar: sumidero
     gl_FragColor = vec4(d, s.g, s.b, max(s.a, d));
   }
 `;
@@ -93,6 +94,25 @@ const FS_REDUCIR = COMUN + /* glsl */`
       suma += d; mx = max(mx, d); c10 += step(0.10, d); c50 += step(0.50, d);
     }
     gl_FragColor = vec4(suma, mx, c10, c50);
+  }
+`;
+
+// Longitud de calles anegadas por bloque de 8×8: R = m de vía con d > 0,10 m, G = con d > 0,30 m
+const FS_REDUCIR_CALLES = COMUN + /* glsl */`
+  uniform sampler2D uS;
+  uniform sampler2D uL;     // metros de eje de vía dentro de cada celda
+  void main(){
+    ivec2 b = ivec2(gl_FragCoord.xy) * 8;
+    float l10 = 0.0, l30 = 0.0;
+    for (int j = 0; j < 8; j++) for (int i = 0; i < 8; i++){
+      ivec2 p = b + ivec2(i, j);
+      if (p.x >= uSize.x || p.y >= uSize.y) continue;
+      float L = texelFetch(uL, p, 0).r;
+      if (L <= 0.0) continue;
+      float d = texelFetch(uS, p, 0).r;
+      l10 += L * step(0.10, d); l30 += L * step(0.30, d);
+    }
+    gl_FragColor = vec4(l10, l30, 0.0, 1.0);
   }
 `;
 
@@ -132,6 +152,7 @@ export class Hidro {
     this.mTirante = mat(FS_TIRANTE, u({ uS: { value: null }, uZ: { value: this.zTex }, uF: { value: this.fTex }, uLluvia: { value: 0 }, uPerdida: { value: 0 } }));
     this.mReducir = mat(FS_REDUCIR, u({ uS: { value: null }, uZ: { value: this.zTex } }));
     this.mLimpiar = mat(FS_LIMPIAR, {});
+    this.mCalles = null;
 
     this.escena = new THREE.Scene();
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -147,6 +168,19 @@ export class Hidro {
   setFuentes(aporte, perm) {
     for (let i = 0; i < this.W * this.H; i++) { this.fArr[2 * i] = aporte[i]; this.fArr[2 * i + 1] = perm[i]; }
     this.fTex.needsUpdate = true;
+  }
+
+  /** Longitud de vía por celda (Float32Array W*H, metros) para medir calles anegadas. */
+  setCalles(longitud) {
+    const t = new THREE.DataTexture(longitud, this.W, this.H, THREE.RedFormat, THREE.FloatType);
+    t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true;
+    this.mCalles = new THREE.ShaderMaterial({
+      vertexShader: VS, fragmentShader: FS_REDUCIR_CALLES, depthTest: false, depthWrite: false,
+      uniforms: { uS: { value: null }, uL: { value: t }, uSize: { value: new Int32Array([this.W, this.H]) }, uDt: { value: 1 }, uDx: { value: this.dx }, uZ: { value: this.zTex } },
+    });
+    this.RC = new THREE.WebGLRenderTarget(this.RW, this.RH, {
+      type: THREE.FloatType, format: THREE.RGBAFormat, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+    });
   }
 
   _pasar(mat, destino) {
@@ -184,7 +218,14 @@ export class Hidro {
     const b = this.bufR;
     for (let i = 0; i < b.length; i += 4) { suma += b[i]; mx = Math.max(mx, b[i + 1]); c10 += b[i + 2]; c50 += b[i + 3]; }
     const a = this.dx * this.dx;
-    return { volumen: suma * a, max: mx, area10: c10 * a, area50: c50 * a };
+    const est = { volumen: suma * a, max: mx, area10: c10 * a, area50: c50 * a, calles10: 0, calles30: 0 };
+    if (this.mCalles) {
+      this.mCalles.uniforms.uS.value = this.A.texture;
+      this._pasar(this.mCalles, this.RC);
+      this.r.readRenderTargetPixels(this.RC, 0, 0, this.RW, this.RH, b);
+      for (let i = 0; i < b.length; i += 4) { est.calles10 += b[i]; est.calles30 += b[i + 1]; }
+    }
+    return est;
   }
 
   /** Lee el estado de una celda: {d, dmax}. */

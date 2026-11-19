@@ -46,6 +46,7 @@
   "S2A_17MNS_20260624_1_L2A"
  ],
  "overture": "2026-11-18.0",
- "creditos": "Relieve: GEM-15, Google (CC-BY 4.0) y Copernicus GLO-30. Imagen: Copernicus Sentinel-2. Edificios: Overture Maps (Google, Microsoft, OSM).",
- "generado": "2026-11-18"
+ "creditos": "Relieve: GEM-15, Google (CC-BY 4.0) y Copernicus GLO-30. Imagen: Copernicus Sentinel-2. Edificios y calles: Overture Maps (Google, Microsoft, OSM).",
+ "generado": "2026-11-18",
+ "km_calles": 444.3
 }

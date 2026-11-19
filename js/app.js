@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Hidro } from './hidro.js';
 import { Escorrentia, Lluvia3D } from './efectos.js';
+import { Calles, TIPO_VIA } from './calles.js';
+import { Pines } from './pines.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (v, d = 0) => v.toLocaleString('es-PE', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -37,10 +39,12 @@ async function cargar() {
   const [dtmB, aguaB, cobB] = await Promise.all([bin(base + 'dtm.u16'), bin(base + 'agua.u8'), bin(base + 'cobertura.u8')]);
   carga(`Cargando ${fmt(meta.n_edificios)} edificaciones…`);
   const edif = meta.n_edificios ? await (await fetch(base + 'edificios.json')).json() : [];
+  carga('Cargando calles…');
+  const calles = await fetch(base + 'calles.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  carga('Cargando imagen Sentinel-2…');
   const img = new Image();
-  img.src = base + 'textura.jpg';
-  await img.decode();
-  return { meta, dtmB, aguaB, cobB, edif, img };
+  await new Promise((ok, mal) => { img.onload = ok; img.onerror = () => mal(new Error('textura.jpg')); img.src = base + 'textura.jpg'; });
+  return { meta, dtmB, aguaB, cobB, edif, img, calles };
 }
 
 function poblarCiudades() {
@@ -65,6 +69,7 @@ async function main() {
     throw e;
   }
   const { meta, dtmB, aguaB, cobB, edif, img } = datos;
+  const params = new URLSearchParams(location.search);
   const W = meta.W, H = meta.H, C = meta.celda, Wm = W * C, Hm = H * C, N = W * H;
 
   // Textos
@@ -149,7 +154,8 @@ async function main() {
   // se inyecta el caudal en sus celdas de borde más altas (aguas arriba).
   const rio = meta.rio_entrada ? celdasCauce(meta.rio_entrada, z, W, H, C) : detectarRio(agua, z, W, H);
   const aporte = new Float32Array(N), perm = new Float32Array(N);
-  for (let i = 0; i < N; i++) perm[i] = agua[i] ? 1 : 1 - 0.85 * cob[i] / 255;
+  // Agua de GEM-15 a menos de 1,5 m s.n.m. = mar: actúa como sumidero (el agua sale del dominio)
+  for (let i = 0; i < N; i++) perm[i] = agua[i] ? (z[i] < 1.5 ? -1 : 1) : 1 - 0.85 * cob[i] / 255;
   function aplicarRio(Q) {
     aporte.fill(0);
     if (rio.length) { const q = Q / (rio.length * C * C); for (const i of rio) aporte[i] = q; }
@@ -161,6 +167,21 @@ async function main() {
   const lluvia3d = new Lluvia3D();
   scene.add(lluvia3d.obj);
 
+  // Calles (Overture)
+  let calles = null;
+  const sinCalles = new THREE.DataTexture(new Uint8Array(4), 1, 1); sinCalles.needsUpdate = true;
+  if (datos.calles && datos.calles.c.length) {
+    carga('Dibujando calles…');
+    await new Promise((r) => setTimeout(r, 0));
+    calles = new Calles(datos.calles, meta, renderer);
+    hidro.setCalles(calles.longitud);
+    $('secCalles').hidden = false;
+    document.querySelectorAll('.kc').forEach((e) => { e.hidden = false; });
+    $('nCalles').textContent = `${fmt(calles.km)} km de vías y ${fmt(calles.nombres.length)} nombres de calles (Overture Maps).`;
+    const dl = $('dlCalles');
+    for (const n of calles.nombres.slice().sort((a, b) => a.localeCompare(b, 'es'))) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); }
+  }
+
   // -------------------------------------------------------------------------
   // Terreno
   // -------------------------------------------------------------------------
@@ -170,6 +191,7 @@ async function main() {
     uExag: { value: 3 }, uCelda: { value: C }, uDom: { value: new THREE.Vector2(Wm, Hm) }, uGrid: { value: new Int32Array([W, H]) },
     uSol: { value: sol }, uNiebla: { value: fondo }, uNieblaD: { value: 1.2e-5 },
     uVerAgua: { value: 1 }, uMapa: { value: 0 }, uVerTrz: { value: 1 }, uLuz: { value: 1 },
+    uCalles: { value: calles ? calles.textura : sinCalles }, uVerCalles: { value: calles ? 1 : 0 },
   };
   const terrGeo = new THREE.BufferGeometry();
   {
@@ -211,13 +233,15 @@ async function main() {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }`,
     fragmentShader: RAMPA + /* glsl */`
-      uniform sampler2D uSat; uniform sampler2D uTrz; uniform vec3 uSol; uniform vec3 uNiebla; uniform float uNieblaD, uVerTrz, uLuz;
+      uniform sampler2D uSat; uniform sampler2D uTrz; uniform sampler2D uCalles; uniform vec3 uSol; uniform vec3 uNiebla; uniform float uNieblaD, uVerTrz, uLuz, uVerCalles;
       varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying float vD;
       void main(){
         vec3 sat = pow(texture2D(uSat, vUv).rgb, vec3(1.18)) * 0.93;   // la costa desértica sale muy clara
         vec3 n = normalize(vN);
         float dif = max(dot(n, uSol), 0.0);
         vec3 col = sat * (0.50 + 0.80*dif) * 1.12 * uLuz;
+        vec4 cs = texture2D(uCalles, vUv);
+        col = mix(col, cs.rgb * (0.80 + 0.25*dif) * uLuz, cs.a * 0.72 * uVerCalles);
         if (vD > 0.02){
           float a = smoothstep(0.02, 0.12, vD);
           vec3 v = normalize(cameraPosition - vW);
@@ -316,9 +340,13 @@ async function main() {
   // -------------------------------------------------------------------------
   // Estado de la simulación y controles
   // -------------------------------------------------------------------------
-  const S = { I: 30, dur: 3, loss: 4, rio: 0, vel: 12, n: 0.035, pausa: false, t: 0, dt: 2, est: { volumen: 0, max: 0, area10: 0, area50: 0 }, lluvia3d: true };
+  const S = { I: 30, dur: 3, loss: 4, rio: 0, vel: 12, n: 0.035, pausa: false, t: 0, dt: 2, est: { volumen: 0, max: 0, area10: 0, area50: 0, calles10: 0, calles30: 0 }, lluvia3d: true };
 
-  function reiniciar() { S.t = 0; S.est = { volumen: 0, max: 0, area10: 0, area50: 0 }; hidro.limpiar(); escorrentia.reiniciar(); }
+  let pines = null;
+  function reiniciar() {
+    S.t = 0; S.est = { volumen: 0, max: 0, area10: 0, area50: 0, calles10: 0, calles30: 0 };
+    hidro.limpiar(); escorrentia.reiniciar(); if (pines) pines.reiniciarSeries();
+  }
 
   function slider(id, out, f, set) {
     const s = $(id), o = $(out);
@@ -392,6 +420,11 @@ async function main() {
     if (inmediato) { camera.position.copy(p); controls.target.copy(t); controls.update(); anim = null; return; }
     anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: p, t1: t, k: 0 };
   }
+  function volarA(xe, ys, dist = 900) {
+    const ex = U.uExag.value, t = new THREE.Vector3(xe - Wm / 2, zEn(xe, ys) * ex, ys - Hm / 2);
+    anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: t.clone().add(new THREE.Vector3(0, dist * 0.62, dist)), t1: t, k: 0 };
+    vb.querySelectorAll('.btn').forEach((x) => x.classList.remove('on'));
+  }
   function animar(dt) {
     if (!anim) return;
     anim.k = Math.min(1, anim.k + dt / 1.6);
@@ -433,15 +466,103 @@ async function main() {
   function actualizarSonda() {
     if (!sonda) return;
     const c = Math.min(W - 1, Math.floor(sonda.xe / C)), r = Math.min(H - 1, Math.floor(sonda.ys / C));
-    const w = hidro.celda(c, r), i = r * W + c;
-    const [lon0, lat0, lon1, lat1] = meta.bbox;
-    const lon = lon0 + (sonda.xe / Wm) * (lon1 - lon0), lat = lat1 - (sonda.ys / Hm) * (lat1 - lat0);
+    const w = hidro.celda(c, r), i = r * W + c, g = pines.coords(sonda.xe, sonda.ys);
+    const via = calles && calles.cercana(sonda.xe, sonda.ys);
     const el = $('sonda');
-    el.innerHTML = `Terreno <b>${fmt(z[i], 1)} m s.n.m.</b>${agua[i] ? ' · cauce' : ''}<br>` +
-      `Tirante actual <b>${fmt(w.d, 2)} m</b><br>Tirante máximo <b>${fmt(w.dmax, 2)} m</b><br>` +
-      `<span class="muted">${lat.toFixed(5)}, ${lon.toFixed(5)}${cob[i] >= UMBRAL_OBST ? ' · manzana' : ''}</span>`;
-    el.style.left = sonda.sx + 'px'; el.style.top = sonda.sy + 'px'; el.hidden = false;
+    if (!sonda.html) {
+      el.innerHTML = `<button class="x" aria-label="Cerrar">✕</button>` +
+        (via ? `<div class="calle">${via.nombre || 'Vía sin nombre'} <span class="muted">· ${TIPO_VIA[via.nivel]}</span></div>` : '') +
+        `Terreno <b>${fmt(z[i], 1)} m s.n.m.</b>${agua[i] ? ' · cauce' : ''}${cob[i] >= UMBRAL_OBST ? ' · manzana' : ''}<br>` +
+        `Tirante actual <b data-s="d"></b><br>Tirante máximo <b data-s="m"></b><br>` +
+        `<span class="muted">${g.lat.toFixed(6)}, ${g.lon.toFixed(6)}<br>UTM 17S ${fmt(g.E, 0)} E · ${fmt(g.N, 0)} N</span><br>` +
+        `<button class="btn primary">📍 Fijar pin aquí</button>`;
+      el.querySelector('.x').onclick = () => { sonda = null; el.hidden = true; };
+      el.querySelector('.btn').onclick = () => { pines.agregar(sonda.xe, sonda.ys); sonda = null; el.hidden = true; abrirPanel(); };
+      sonda.html = true;
+    }
+    el.querySelector('[data-s=d]').textContent = `${fmt(w.d, 2)} m`;
+    el.querySelector('[data-s=m]').textContent = `${fmt(w.dmax, 2)} m`;
+    el.style.left = Math.min(sonda.sx, innerWidth - 250) + 'px'; el.style.top = sonda.sy + 'px'; el.hidden = false;
   }
+  function abrirPanel() { const p = $('panel'); if (p.classList.contains('closed')) $('tPanel').click(); }
+
+  // Nombre de la calle bajo el cursor
+  let ultimoMov = 0;
+  canvas.addEventListener('pointermove', (e) => {
+    const et = $('etiqueta');
+    if (!calles || !U.uVerCalles.value || e.buttons) { et.hidden = true; return; }
+    const ahora = performance.now(); if (ahora - ultimoMov < 90) return; ultimoMov = ahora;
+    const rc = canvas.getBoundingClientRect();
+    ptr.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
+    ray.setFromCamera(ptr, camera);
+    const hit = camera.position.distanceTo(controls.target) < 6000 ? intersectarTerreno(ray.ray) : null;
+    const via = hit && calles.cercana(hit.xe, hit.ys);
+    if (!via || !via.nombre) { et.hidden = true; return; }
+    et.textContent = via.nombre; et.style.left = e.clientX + 'px'; et.style.top = e.clientY + 'px'; et.hidden = false;
+  });
+  canvas.addEventListener('pointerleave', () => { $('etiqueta').hidden = true; });
+
+  // Pines
+  pines = new Pines({
+    scene, meta, ciudad, z, zEn, hidro, calles, exag: () => U.uExag.value, lista: $('pines'),
+    irA: (xe, ys, d) => volarA(xe, ys, d),
+    aviso: (t) => avisoIr(t),
+  });
+  pines.render();
+  function avisoIr(t) {
+    const n = $('nIr'), orig = n.dataset.orig || (n.dataset.orig = n.textContent);
+    n.textContent = t; n.style.color = '#b4540a';
+    clearTimeout(avisoIr.t); avisoIr.t = setTimeout(() => { n.textContent = orig; n.style.color = ''; }, 3500);
+  }
+  $('fIr').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const txt = $('tIr').value.trim();
+    if (!txt) return;
+    const nums = txt.match(/-?\d+(?:\.\d+)?/g);
+    let pos = null;
+    if (nums && nums.length === 2 && /^[-\d\s.,;°NSEOW]+$/i.test(txt)) {
+      let [a, b] = nums.map(Number);
+      if (Math.abs(a) <= 90 && Math.abs(b) <= 180) {               // lat, lon (acepta lon, lat)
+        if (Math.abs(a) > 20 && Math.abs(b) < 20) [a, b] = [b, a];
+        pos = pines.desdeGeo(a, b);
+      } else {                                                       // UTM: Este Norte (acepta Norte Este)
+        if (a > 1e6 && b < 1e6) [a, b] = [b, a];
+        pos = pines.desdeUTM(a, b);
+      }
+      if (!pos) return avisoIr('Esa coordenada está fuera de la escena de ' + meta.nombre + '.');
+    } else if (calles) {
+      const r = calles.buscar(txt, 1);
+      if (!r.length) return avisoIr('No encontré una calle con ese nombre.');
+      pos = calles.ubicar(r[0]); $('tIr').value = r[0];
+    } else return avisoIr('Escribe coordenadas: latitud, longitud o Este Norte (UTM 17S).');
+    pines.agregar(pos.xe, pos.ys); volarA(pos.xe, pos.ys, 900);
+  });
+  $('bPinCSV').onclick = () => pines.exportarCSV();
+  $('bPinGJ').onclick = () => pines.exportarGeoJSON();
+  $('bPinSerie').onclick = () => pines.exportarSerie();
+  $('bPinLink').onclick = (e) => {
+    const b = e.currentTarget;
+    const ok = () => { b.textContent = '¡Copiado!'; setTimeout(() => (b.textContent = 'Copiar enlace'), 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(pines.enlace()).then(ok, () => prompt('Copia este enlace:', pines.enlace()));
+    else prompt('Copia este enlace:', pines.enlace());
+  };
+
+  // Calles: mostrar / más afectadas
+  if (calles) {
+    $('cCalles').addEventListener('change', (e) => { U.uVerCalles.value = e.target.checked ? 1 : 0; });
+    $('bAfect').addEventListener('click', () => {
+      const lista = calles.afectadas(hidro.rejilla(3), 0.3, 10), ol = $('lAfect');
+      ol.innerHTML = lista.length ? '' : '<li class="muted" style="cursor:default">Ninguna calle con nombre supera 30 cm todavía.</li>';
+      for (const a of lista) {
+        const li = document.createElement('li');
+        li.innerHTML = `<b>${a.nombre}</b> <span>${fmt(a.km, 2)} km · máx ${fmt(a.dmax, 2)} m</span>`;
+        li.title = 'Ir al punto más profundo de esta calle';
+        li.onclick = () => volarA(a.xe, a.ys, 800);
+        ol.appendChild(li);
+      }
+    });
+  }
+
   controls.addEventListener('start', () => { sonda = null; $('sonda').hidden = true; });
 
   // -------------------------------------------------------------------------
@@ -453,11 +574,14 @@ async function main() {
   }
   addEventListener('resize', redimensionar); redimensionar();
   irA('general', true);
+  if (params.get('pin') && pines.desdeURL(params.get('pin'))) {
+    const p0 = pines.pines[0]; volarA(p0.xe, p0.ys, 1100); abrirPanel();
+  }
   $('cargando').classList.add('oculto');
 
   const reloj = new THREE.Clock();
   let acum = 0, cuadros = 0, tStats = 0, tReal = 0, factorLluvia = 0;
-  const hud = { T: $('hT'), P: $('hP'), V: $('hV'), A10: $('hA10'), A50: $('hA50'), M: $('hMax'), F: $('hFase'), fps: $('fps') };
+  const hud = { T: $('hT'), P: $('hP'), V: $('hV'), A10: $('hA10'), A50: $('hA50'), M: $('hMax'), F: $('hFase'), fps: $('fps'), C10: $('hC10'), C30: $('hC30') };
 
   function cuadro() {
     requestAnimationFrame(cuadro);
@@ -492,6 +616,7 @@ async function main() {
     controls.update();
     const dist = camera.position.distanceTo(controls.target), near = Math.max(8, dist * 0.02);
     if (Math.abs(near - camera.near) / camera.near > 0.1) { camera.near = near; camera.updateProjectionMatrix(); }
+    pines.posicionar();
     renderer.render(scene, camera);
 
     acum += dt; cuadros++; tStats += dt;
@@ -505,13 +630,15 @@ async function main() {
       hud.A10.textContent = `${fmt(S.est.area10 / 1e4)} ha`;
       hud.A50.textContent = `${fmt(S.est.area50 / 1e4)} ha`;
       hud.M.textContent = `${fmt(S.est.max, 2)} m`;
+      if (calles) { hud.C10.textContent = `${fmt(S.est.calles10 / 1000, 1)} km`; hud.C30.textContent = `${fmt(S.est.calles30 / 1000, 1)} km`; }
+      pines.actualizar(S.t, !S.pausa);
       hud.F.textContent = S.pausa ? 'En pausa' : (S.t < durS ? 'Lloviendo' : 'Escurrimiento');
       hud.F.className = 'pill' + (S.pausa ? ' pausa' : (S.t < durS ? '' : ' seco'));
       actualizarSonda();
     }
     if (acum > 0.5) { hud.fps.textContent = Math.round(cuadros / acum); acum = 0; cuadros = 0; }
   }
-  window.__simulador = { S, hidro, meta };
+  window.__simulador = { S, hidro, meta, pines, calles };
   cuadro();
 }
 
@@ -554,9 +681,10 @@ function detectarRio(agua0, z, W, H) {
       if (r > 0 && agua[i - W] && comp[i - W] < 0) { comp[i - W] = id; cola[b++] = i - W; }
       if (r < H - 1 && agua[i + W] && comp[i + W] < 0) { comp[i + W] = id; cola[b++] = i + W; }
     }
-    info.push({ n: b, lados: lados.size, borde });
+    info.push({ n: b, lados: lados.size, borde, zmax: borde.reduce((m, i) => Math.max(m, z[i]), -1e9) });
   }
-  const rios = info.filter((x) => x.lados >= 2 && x.borde.length).sort((p, q) => q.n - p.n);
+  // descarta el mar (todo el borde por debajo de 3 m)
+  const rios = info.filter((x) => x.lados >= 2 && x.borde.length && x.zmax > 3).sort((p, q) => q.n - p.n);
   if (!rios.length) return [];
   const borde = rios[0].borde;
   let imax = borde[0];

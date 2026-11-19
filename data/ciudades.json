@@ -14,5 +14,21 @@
  "chiclayo": {
   "nombre": "Chiclayo",
   "subtitulo": "Chiclayo, José Leonardo Ortiz y La Victoria"
+ },
+ "trujillo": {
+  "nombre": "Trujillo",
+  "subtitulo": "Trujillo, El Porvenir y La Esperanza"
+ },
+ "talara": {
+  "nombre": "Talara",
+  "subtitulo": "Talara y Pariñas"
+ },
+ "paita": {
+  "nombre": "Paita",
+  "subtitulo": "Paita y su bahía"
+ },
+ "chulucanas": {
+  "nombre": "Chulucanas",
+  "subtitulo": "Chulucanas (Morropón)"
  }
 }
