@@ -65,7 +65,8 @@ export class Pines {
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaPin(id), depthTest: false, depthWrite: false, sizeAttenuation: false }));
     spr.center.set(0.5, 0); spr.scale.set(0.03, 0.04, 1); spr.renderOrder = 20;
     this.scene.add(spr);
-    const p = { id, xe, ys, spr, t: [], d: [], calle: this.calle(xe, ys), ...this.coords(xe, ys) };
+    const p = { id, xe, ys, spr, t: [], d: [], calle: this.calle(xe, ys), abierto: true, ...this.coords(xe, ys) };
+    for (const q of this.pines) q.abierto = false;           // el nuevo se abre; los anteriores se pliegan
     this.pines.push(p);
     this.render(); this.posicionar(); this.sincronizarURL();
     return p;
@@ -99,6 +100,8 @@ export class Pines {
         if (p.t.length > MAX_MUESTRAS) { p.t = p.t.filter((_, j) => j % 2 === 0); p.d = p.d.filter((_, j) => j % 2 === 0); }
       }
       if (p.el) {
+        p.el.querySelector('[data-v=dh]').textContent = `${fmt(w.d, 2)} m`;
+        p.el.querySelector('[data-v=dh]').classList.toggle('mojado', w.d >= 0.1);
         p.el.querySelector('[data-v=d]').textContent = `${fmt(w.d, 2)} m`;
         p.el.querySelector('[data-v=dmax]').textContent = `${fmt(w.dmax, 2)} m`;
         this.dibujar(p);
@@ -137,21 +140,33 @@ export class Pines {
     }
     for (const p of this.pines) {
       const cota = this.z[this.celda(p.xe, p.ys).i];
-      const el = document.createElement('div'); el.className = 'pin';
+      const el = document.createElement('div'); el.className = 'pin' + (p.abierto ? ' abierto' : '');
       el.innerHTML = `
-        <div class="pin-h"><span class="pin-n">${p.id}</span><b title="Calle más cercana">${p.calle || '—'}</b>
-          <button class="mini" data-a="ir" title="Ir al pin">Ir</button>
-          <button class="mini" data-a="copiar" title="Copiar coordenadas">Copiar</button>
-          <button class="mini" data-a="x" title="Quitar pin" aria-label="Quitar pin ${p.id}">✕</button></div>
-        <div class="mono">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
-        <div class="mono">UTM 17S ${fmt(p.E, 0)} E · ${fmt(p.N, 0)} N</div>
-        <div class="pin-g"><div><span>Cota</span><b>${fmt(cota, 1)} m</b></div><div><span>Agua</span><b data-v="d">–</b></div><div><span>Máximo</span><b data-v="dmax">–</b></div></div>
-        <canvas width="520" height="96" aria-label="Tirante en el tiempo en el pin ${p.id}"></canvas>`;
+        <button class="pin-h" aria-expanded="${p.abierto}" title="Mostrar u ocultar el detalle">
+          <span class="pin-n">${p.id}</span><b>${p.calle || '—'}</b>
+          <span class="pin-d" data-v="dh">–</span><span class="pin-flecha" aria-hidden="true">▾</span></button>
+        <div class="pin-b">
+          <div class="mono">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
+          <div class="mono">UTM 17S ${fmt(p.E, 0)} E · ${fmt(p.N, 0)} N</div>
+          <div class="pin-g"><div><span>Cota</span><b>${fmt(cota, 1)} m</b></div><div><span>Agua</span><b data-v="d">–</b></div><div><span>Máximo</span><b data-v="dmax">–</b></div></div>
+          <canvas width="520" height="96" aria-label="Tirante en el tiempo en el pin ${p.id}"></canvas>
+          <div class="pin-a">
+            <button class="mini" data-a="ir" title="Ir al pin">Ir al pin</button>
+            <button class="mini" data-a="copiar" title="Copiar coordenadas (lat/lon y UTM)">Copiar</button>
+            <button class="mini" data-a="x" title="Quitar pin" aria-label="Quitar pin ${p.id}">Quitar</button>
+          </div>
+        </div>`;
+      el.querySelector('.pin-h').onclick = () => {
+        p.abierto = !p.abierto;
+        el.classList.toggle('abierto', p.abierto);
+        el.querySelector('.pin-h').setAttribute('aria-expanded', p.abierto);
+        if (p.abierto) this.dibujar(p);
+      };
       el.querySelector('[data-a=ir]').onclick = () => this.irA(p.xe, p.ys, 900);
       el.querySelector('[data-a=x]').onclick = () => this.quitar(p.id);
       el.querySelector('[data-a=copiar]').onclick = (e) => {
         const txt = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}\nUTM 17S: ${p.E.toFixed(1)} E, ${p.N.toFixed(1)} N`;
-        navigator.clipboard?.writeText(txt).then(() => { e.target.textContent = '✓'; setTimeout(() => (e.target.textContent = 'Copiar'), 1200); });
+        navigator.clipboard?.writeText(txt).then(() => { e.target.textContent = '¡Copiado!'; setTimeout(() => (e.target.textContent = 'Copiar'), 1200); });
       };
       p.el = el; L.appendChild(el); this.dibujar(p);
     }

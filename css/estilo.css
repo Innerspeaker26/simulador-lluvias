@@ -90,9 +90,18 @@ button{font:inherit;color:inherit}
 .ir input{flex:1;min-width:0;font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;color:var(--ink)}
 .ir .btn{padding:6px 12px}
 #pines .vacio{font-size:12px;color:var(--muted);margin:4px 0 8px}
-.pin{border:1px solid var(--line);border-radius:10px;padding:8px 9px;margin:0 0 8px;background:#fff;font-size:12px;line-height:1.5}
-.pin-h{display:flex;align-items:center;gap:6px;margin-bottom:2px}
-.pin-h b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.pin{border:1px solid var(--line);border-radius:10px;margin:0 0 6px;background:#fff;font-size:12px;line-height:1.5}
+.pin-h{display:flex;align-items:center;gap:7px;width:100%;border:0;background:transparent;padding:7px 9px;cursor:pointer;text-align:left;border-radius:10px}
+.pin-h:hover{background:#f4f7f9}
+.pin-h b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:600}
+.pin-d{font-family:var(--mono);font-size:11.5px;color:var(--muted);flex:none}
+.pin-d.mojado{color:#0f4fb0;font-weight:500}
+.pin-flecha{flex:none;color:var(--muted);font-size:11px;transition:transform .15s}
+.pin.abierto .pin-flecha{transform:rotate(180deg)}
+.pin-b{display:none;padding:0 9px 8px}
+.pin.abierto .pin-b{display:block}
+.pin-a{display:flex;gap:5px;margin-top:6px}
+.pin-a .mini{flex:1;padding:4px 4px}
 .pin-n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#e5483b;color:#fff;font-weight:600;font-size:11px;flex:none}
 .mini{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;color:var(--muted)}
 .mini:hover{border-color:#b8c4cb;color:var(--ink)}
