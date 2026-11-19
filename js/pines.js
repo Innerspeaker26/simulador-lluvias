@@ -32,7 +32,7 @@ export class Pines {
     Object.assign(this, ctx);
     const m = this.meta;
     this.Wm = m.W * m.celda; this.Hm = m.H * m.celda;
-    this.pines = []; this.sig = 1;
+    this.pines = [];
   }
 
   // ---- Coordenadas ----------------------------------------------------------
@@ -61,7 +61,7 @@ export class Pines {
 
   // ---- Alta / baja -----------------------------------------------------------
   agregar(xe, ys) {
-    const id = this.sig++;
+    const id = this.pines.length + 1;                        // numeración siempre correlativa
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaPin(id), depthTest: false, depthWrite: false, sizeAttenuation: false }));
     spr.center.set(0.5, 0); spr.scale.set(0.03, 0.04, 1); spr.renderOrder = 20;
     this.scene.add(spr);
@@ -77,9 +77,17 @@ export class Pines {
     const p = this.pines[k];
     this.scene.remove(p.spr); p.spr.material.map.dispose(); p.spr.material.dispose();
     this.pines.splice(k, 1);
+    // Renumerar 1, 2, 3… (y redibujar el número en el marcador 3D de los que cambian)
+    this.pines.forEach((q, j) => {
+      if (q.id === j + 1) return;
+      q.id = j + 1;
+      q.spr.material.map.dispose();
+      q.spr.material.map = texturaPin(q.id);
+      q.spr.material.needsUpdate = true;
+    });
     this.render(); this.sincronizarURL();
   }
-  limpiar() { for (const p of [...this.pines]) this.quitar(p.id); this.sig = 1; }
+  limpiar() { for (const p of [...this.pines]) this.quitar(p.id); }
 
   // ---- Actualización -------------------------------------------------------------
   /** Cada cuadro: sigue la exageración vertical y el nivel del agua */
